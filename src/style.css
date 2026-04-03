@@ -158,6 +158,10 @@ body, button, input, textarea, select, a {
   border-top: 1px solid rgba(148, 163, 184, 0.14);
 }
 
+.accent-block {
+  background: linear-gradient(180deg, rgba(56, 189, 248, 0.08), rgba(79, 70, 229, 0.05));
+}
+
 h2 {
   margin: 10px 0 12px;
   font-size: clamp(1.5rem, 5vw, 2.2rem);
@@ -189,23 +193,42 @@ p, li {
 .feature-list,
 .concept-grid,
 .next-grid,
-.tip-grid {
+.tip-grid,
+.method-grid,
+.comparison-grid,
+.mistake-list,
+.decision-grid,
+.two-column-text {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
 }
 
+.comparison-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.mistake-list {
+  grid-template-columns: 1fr;
+}
+
 .feature-list article,
 .concept-grid article,
 .next-grid article,
-.tip-grid > div {
+.tip-grid > div,
+.method-grid article,
+.comparison-grid article,
+.mistake-list article,
+.decision-grid article,
+.two-column-text > div {
   padding: 16px;
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(148, 163, 184, 0.12);
 }
 
-.concept-grid span {
+.concept-grid span,
+.comparison-grid span {
   display: inline-block;
   margin-bottom: 8px;
   font-weight: 800;
@@ -243,6 +266,10 @@ code {
   .toc-card {
     position: static;
   }
+
+  .comparison-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 640px) {
@@ -272,7 +299,11 @@ code {
   .feature-list,
   .concept-grid,
   .next-grid,
-  .tip-grid {
+  .tip-grid,
+  .method-grid,
+  .comparison-grid,
+  .decision-grid,
+  .two-column-text {
     grid-template-columns: 1fr;
   }
 
