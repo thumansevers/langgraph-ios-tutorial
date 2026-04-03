@@ -1,0 +1,287 @@
+:root {
+  font-family: Inter, -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', 'Helvetica Neue', sans-serif;
+  line-height: 1.6;
+  font-weight: 400;
+  color: #e8ecf3;
+  background:
+    radial-gradient(circle at top, rgba(96, 165, 250, 0.24), transparent 32%),
+    linear-gradient(180deg, #07111f 0%, #0b1324 55%, #0f172a 100%);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+}
+
+body, button, input, textarea, select, a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+#app {
+  width: 100%;
+}
+
+.page-shell {
+  width: min(1120px, calc(100% - 24px));
+  margin: 0 auto;
+  padding: 24px 0 48px;
+}
+
+.hero,
+.toc-card,
+.article-card {
+  background: rgba(8, 15, 30, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(18px);
+}
+
+.hero {
+  border-radius: 28px;
+  padding: 28px;
+  margin-bottom: 20px;
+}
+
+.hero-badge,
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #7dd3fc;
+  font-weight: 700;
+}
+
+.hero h1 {
+  margin: 14px 0 14px;
+  font-size: clamp(2rem, 7vw, 3.8rem);
+  line-height: 1.08;
+}
+
+.hero-subtitle {
+  margin: 0;
+  max-width: 760px;
+  color: #cbd5e1;
+  font-size: 1.05rem;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  text-decoration: none;
+  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.03);
+  font-weight: 600;
+}
+
+.button.primary {
+  background: linear-gradient(135deg, #38bdf8, #4f46e5);
+  border: none;
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.toc-card {
+  position: sticky;
+  top: 16px;
+  border-radius: 24px;
+  padding: 20px;
+}
+
+.toc-title {
+  margin: 0 0 12px;
+  font-size: 0.9rem;
+  color: #94a3b8;
+}
+
+.toc-card nav {
+  display: grid;
+  gap: 10px;
+}
+
+.toc-card a {
+  color: #e2e8f0;
+  text-decoration: none;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid transparent;
+}
+
+.toc-card a:hover {
+  border-color: rgba(125, 211, 252, 0.45);
+}
+
+.article-card {
+  border-radius: 28px;
+  padding: 10px;
+}
+
+.section-block {
+  padding: 24px 18px;
+  border-radius: 22px;
+}
+
+.section-block + .section-block {
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+h2 {
+  margin: 10px 0 12px;
+  font-size: clamp(1.5rem, 5vw, 2.2rem);
+  line-height: 1.2;
+}
+
+h3 {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+}
+
+p, li {
+  color: #d6deea;
+}
+
+.callout {
+  margin-top: 16px;
+  border-left: 4px solid #38bdf8;
+  background: rgba(56, 189, 248, 0.08);
+  border-radius: 16px;
+  padding: 14px 16px;
+}
+
+.callout.soft {
+  border-left-color: #a78bfa;
+  background: rgba(167, 139, 250, 0.1);
+}
+
+.feature-list,
+.concept-grid,
+.next-grid,
+.tip-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.feature-list article,
+.concept-grid article,
+.next-grid article,
+.tip-grid > div {
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.concept-grid span {
+  display: inline-block;
+  margin-bottom: 8px;
+  font-weight: 800;
+  color: #7dd3fc;
+}
+
+pre {
+  margin: 16px 0;
+  padding: 16px;
+  overflow-x: auto;
+  border-radius: 18px;
+  background: #020617;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+code {
+  font-family: 'SFMono-Regular', ui-monospace, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+  font-size: 0.92rem;
+}
+
+.steps-list,
+.ios-list {
+  padding-left: 20px;
+}
+
+.final-block {
+  padding-bottom: 30px;
+}
+
+@media (max-width: 900px) {
+  .content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .toc-card {
+    position: static;
+  }
+}
+
+@media (max-width: 640px) {
+  .page-shell {
+    width: min(100% - 16px, 100%);
+    padding: 12px 0 28px;
+  }
+
+  .hero,
+  .article-card,
+  .toc-card {
+    border-radius: 22px;
+  }
+
+  .hero {
+    padding: 20px;
+  }
+
+  .article-card {
+    padding: 4px;
+  }
+
+  .section-block {
+    padding: 20px 14px;
+  }
+
+  .feature-list,
+  .concept-grid,
+  .next-grid,
+  .tip-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .button {
+    width: 100%;
+  }
+
+  pre {
+    padding: 14px;
+    font-size: 0.88rem;
+  }
+}
