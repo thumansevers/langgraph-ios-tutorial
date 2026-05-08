@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f3f7f8">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="DeerFlow Study">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>DeerFlow 2.0 学习系统</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#/overview" aria-label="打开 DeerFlow 学习总览">
+        <span class="brand-mark">DF</span>
+        <span>
+          <strong>DeerFlow 2.0 学习系统</strong>
+          <small>Gateway · Runtime · Middleware · Sandbox · MCP</small>
+        </span>
+      </a>
+      <div class="top-actions">
+        <label class="search-wrap" for="globalSearch">
+          <span>Search</span>
+          <input id="globalSearch" type="search" placeholder="搜索 Gateway、Sandbox、Memory、MCP..." autocomplete="off">
+        </label>
+        <button class="ghost-button" id="toggleRaw" type="button" aria-pressed="false">原文</button>
+        <button class="ghost-button" id="resetProgress" type="button">重置进度</button>
+      </div>
+    </header>
+
+    <aside class="sidebar" aria-label="课程目录">
+      <div class="sidebar-section compact">
+        <span class="eyebrow">Course Map</span>
+        <h2>12 篇完整文档</h2>
+        <p id="courseMeta">正在读取文档数据。</p>
+      </div>
+      <nav class="doc-list" id="docList"></nav>
+    </aside>
+
+    <main class="content" id="content" tabindex="-1"></main>
+
+    <aside class="right-rail" aria-label="章节与学习状态">
+      <section class="rail-panel" id="progressPanel"></section>
+      <section class="rail-panel" id="outlinePanel"></section>
+      <section class="rail-panel" id="searchPanel"></section>
+    </aside>
+  </div>
+
+  <nav class="mobile-tabbar" aria-label="手机底部导航">
+    <button type="button" data-mobile-action="home">总览</button>
+    <button type="button" data-mobile-action="catalog">目录</button>
+    <button type="button" data-mobile-action="search">搜索</button>
+    <button type="button" data-mobile-action="outline">大纲</button>
+  </nav>
+
+  <div class="mobile-drawer" id="mobileDrawer" aria-hidden="true">
+    <div class="mobile-drawer-backdrop" data-mobile-close></div>
+    <section class="mobile-drawer-panel" role="dialog" aria-modal="true" aria-labelledby="mobileDrawerTitle">
+      <header class="mobile-drawer-head">
+        <h2 id="mobileDrawerTitle">学习面板</h2>
+        <button type="button" class="ghost-button" data-mobile-close>关闭</button>
+      </header>
+      <div class="mobile-drawer-body" id="mobileDrawerBody"></div>
+    </section>
+  </div>
+
+  <script src="assets/docs-data.js"></script>
+  <script src="assets/app.js"></script>
+  <script>
+    if ("serviceWorker" in navigator && location.protocol !== "file:") {
+      navigator.serviceWorker.register("./sw.js");
+    }
+  </script>
+</body>
+</html>

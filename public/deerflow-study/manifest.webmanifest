@@ -1,0 +1,18 @@
+{
+  "name": "DeerFlow 2.0 学习系统",
+  "short_name": "DeerFlow Study",
+  "description": "DeerFlow 2.0 架构学习系统，支持手机阅读、全文搜索和学习进度。",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f3f7f8",
+  "theme_color": "#138d84",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "assets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
