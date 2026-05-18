@@ -1,4 +1,4 @@
-const CACHE_NAME = "deerflow-study-v1";
+const CACHE_NAME = "deerflow-study-v5";
 const APP_SHELL = [
   "./",
   "./index.html",

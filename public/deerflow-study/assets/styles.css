@@ -645,6 +645,49 @@ pre {
   min-width: 0;
 }
 
+.version-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 18px;
+  max-width: 760px;
+}
+
+.version-tab {
+  min-height: 58px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.76);
+  color: var(--text);
+  cursor: pointer;
+  padding: 10px 12px;
+  text-align: left;
+  transition: border-color 150ms ease, background 150ms ease, transform 150ms ease;
+}
+
+.version-tab:hover,
+.version-tab.active {
+  transform: translateY(-1px);
+  border-color: var(--teal);
+  background: var(--teal-soft);
+}
+
+.version-tab strong {
+  display: block;
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.25;
+}
+
+.version-tab span {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
 .reader-body {
   padding: clamp(22px, 4vw, 44px);
 }
@@ -805,6 +848,34 @@ pre {
   font-size: 16px;
 }
 
+.rail-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin-bottom: 12px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper-soft);
+}
+
+.rail-switch button {
+  min-height: 34px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-weight: 700;
+  transition: color 150ms ease, background 150ms ease, box-shadow 150ms ease;
+}
+
+.rail-switch button.active {
+  background: var(--paper);
+  color: var(--teal);
+  box-shadow: 0 6px 18px rgba(31, 50, 61, 0.08);
+}
+
 .progress-bar {
   height: 8px;
   border-radius: 999px;
@@ -824,6 +895,258 @@ pre {
   color: var(--muted);
   line-height: 1.6;
   font-size: 13px;
+}
+
+.note-context {
+  margin: 0 0 10px;
+  color: var(--muted);
+  line-height: 1.5;
+  font-size: 12px;
+}
+
+.note-textarea {
+  width: 100%;
+  min-height: 190px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper-soft);
+  color: var(--ink);
+  padding: 11px;
+  line-height: 1.65;
+  outline: none;
+  font-family: var(--sans);
+  font-size: 14px;
+}
+
+.note-textarea:focus {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px var(--teal-soft);
+}
+
+.note-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.note-actions .ghost-button {
+  width: 100%;
+  height: 36px;
+  padding: 0 8px;
+  font-size: 13px;
+}
+
+.note-status {
+  margin: 9px 0 0;
+  color: var(--muted);
+  line-height: 1.5;
+  font-size: 12px;
+}
+
+.ai-context {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.ai-context strong {
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.ai-context span,
+.ai-status {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.ai-chat-log {
+  display: grid;
+  gap: 8px;
+  max-height: 430px;
+  overflow: auto;
+  padding-right: 4px;
+  scrollbar-width: thin;
+}
+
+.ai-empty,
+.ai-message {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper-soft);
+  padding: 10px;
+}
+
+.ai-empty strong {
+  display: block;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.ai-empty p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.ai-message {
+  display: grid;
+  gap: 6px;
+}
+
+.ai-message > span {
+  width: fit-content;
+  border-radius: 999px;
+  background: var(--teal-soft);
+  color: var(--teal);
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.ai-message.user {
+  background: #eef8f7;
+  border-color: rgba(19, 141, 132, 0.28);
+}
+
+.ai-message.assistant > span {
+  background: var(--blue-soft);
+  color: var(--blue);
+}
+
+.ai-message p {
+  margin: 0 0 8px;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.ai-message p:last-child {
+  margin-bottom: 0;
+}
+
+.ai-message pre {
+  margin: 2px 0;
+  max-width: 100%;
+  overflow: auto;
+  border: 1px solid var(--dark-line);
+  border-radius: 6px;
+  background: var(--dark);
+  color: #d7e4e8;
+  padding: 10px;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.ai-composer {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.ai-config-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ai-key-field {
+  display: grid;
+  gap: 5px;
+}
+
+.ai-key-field.wide,
+.ai-check-field {
+  grid-column: 1 / -1;
+}
+
+.ai-key-field span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.ai-key-field input {
+  width: 100%;
+  height: 38px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper-soft);
+  color: var(--ink);
+  padding: 0 10px;
+  outline: none;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.ai-key-field input:focus {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px var(--teal-soft);
+}
+
+.ai-check-field {
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper-soft);
+  padding: 0 10px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.ai-check-field input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--teal);
+}
+
+.ai-composer textarea {
+  width: 100%;
+  min-height: 96px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper-soft);
+  color: var(--ink);
+  padding: 10px;
+  outline: none;
+  font-family: var(--sans);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.ai-composer textarea:focus {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px var(--teal-soft);
+}
+
+.ai-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px;
+  gap: 8px;
+}
+
+.ai-actions button {
+  width: 100%;
+  min-height: 38px;
+}
+
+.ai-actions button:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.ai-status {
+  margin: 0;
 }
 
 .outline-list,
@@ -1090,6 +1413,10 @@ pre {
     max-width: none;
     margin-bottom: 12px;
   }
+
+  .mobile-drawer-body .note-textarea {
+    min-height: 260px;
+  }
 }
 
 @media (max-width: 640px) {
@@ -1149,6 +1476,10 @@ pre {
   .reader-header,
   .reader-body {
     padding: 22px;
+  }
+
+  .version-tabs {
+    grid-template-columns: 1fr;
   }
 
   .markdown {

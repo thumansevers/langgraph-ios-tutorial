@@ -2,11 +2,22 @@
   const data = window.DEERFLOW_DOCS || { system: {}, docs: [] };
   const docs = data.docs || [];
   const storageKey = "deerflow-learning-state-v1";
+  const notesStorageKey = "deerflow-learning-notes-v1";
+  const aiStorageKey = "deerflow-learning-ai-chat-v1";
+  const aiConfigStorageKey = "deerflow-learning-ai-config-v1";
+  const localAiConfig = window.DEERFLOW_AI_CONFIG || {};
+  const defaultAiConfig = {
+    endpoint: localAiConfig.endpoint || "https://api.deepseek.com/chat/completions",
+    model: localAiConfig.model || "deepseek-v4-pro",
+    apiKey: localAiConfig.apiKey || "",
+    webSearch: localAiConfig.webSearch !== false
+  };
   const els = {
     content: document.getElementById("content"),
     docList: document.getElementById("docList"),
     courseMeta: document.getElementById("courseMeta"),
     progressPanel: document.getElementById("progressPanel"),
+    notesPanel: document.getElementById("notesPanel"),
     outlinePanel: document.getElementById("outlinePanel"),
     searchPanel: document.getElementById("searchPanel"),
     search: document.getElementById("globalSearch"),
@@ -24,6 +35,11 @@
     query: "",
     rawMode: false,
     mobilePanel: "",
+    railMode: "ai",
+    aiMessages: loadAiMessages(),
+    aiConfig: loadAiConfig(),
+    aiBusy: false,
+    docVersions: {},
     progress: loadProgress()
   };
 
@@ -43,6 +59,59 @@
     localStorage.setItem(storageKey, JSON.stringify(appState.progress));
   }
 
+  function loadNotes() {
+    try {
+      return JSON.parse(localStorage.getItem(notesStorageKey) || "{}");
+    } catch (error) {
+      return {};
+    }
+  }
+
+  function saveNotes(notes) {
+    localStorage.setItem(notesStorageKey, JSON.stringify(notes));
+  }
+
+  function loadAiMessages() {
+    try {
+      const stored = JSON.parse(localStorage.getItem(aiStorageKey) || "[]");
+      return Array.isArray(stored) ? stored.slice(-16) : [];
+    } catch (error) {
+      return [];
+    }
+  }
+
+  function saveAiMessages() {
+    localStorage.setItem(aiStorageKey, JSON.stringify(appState.aiMessages.slice(-16)));
+  }
+
+  function loadAiConfig() {
+    try {
+      const stored = JSON.parse(localStorage.getItem(aiConfigStorageKey) || "{}");
+      return {
+        endpoint: stored.endpoint || defaultAiConfig.endpoint,
+        model: stored.model || defaultAiConfig.model,
+        apiKey: stored.apiKey || defaultAiConfig.apiKey,
+        webSearch: typeof stored.webSearch === "boolean" ? stored.webSearch : defaultAiConfig.webSearch
+      };
+    } catch (error) {
+      return { ...defaultAiConfig };
+    }
+  }
+
+  function saveAiConfig(nextConfig) {
+    appState.aiConfig = {
+      endpoint: nextConfig.endpoint || defaultAiConfig.endpoint,
+      model: nextConfig.model || defaultAiConfig.model,
+      apiKey: nextConfig.apiKey || "",
+      webSearch: Boolean(nextConfig.webSearch)
+    };
+    try {
+      localStorage.setItem(aiConfigStorageKey, JSON.stringify(appState.aiConfig));
+    } catch (error) {
+      // Ignore private-mode storage failures.
+    }
+  }
+
   function escapeHtml(value) {
     return String(value)
       .replace(/&/g, "&amp;")
@@ -56,12 +125,30 @@
     return String(value || "").toLowerCase();
   }
 
+  function tokenize(value) {
+    return Array.from(new Set(normalize(value).match(/[\u4e00-\u9fa5]{2,}|[a-z0-9_./-]{2,}/g) || []))
+      .filter((term) => !["the", "and", "with", "from", "this", "that", "http", "https"].includes(term))
+      .slice(0, 28);
+  }
+
   function docNumber(doc) {
     return String(doc.order).padStart(2, "0");
   }
 
   function byId(id) {
     return docs.find((doc) => doc.id === id) || docs[0];
+  }
+
+  function activeDoc(baseDoc) {
+    const doc = baseDoc || byId(appState.activeDocId);
+    if (!doc?.versions?.length) return doc;
+    const versionId = appState.docVersions[doc.id] || doc.currentVersion || doc.versions[doc.versions.length - 1].version;
+    const version = doc.versions.find((item) => item.version === versionId) || doc.versions[doc.versions.length - 1];
+    return { ...doc, ...version, versions: doc.versions, currentVersion: version.version };
+  }
+
+  function activeDocById(id) {
+    return activeDoc(byId(id));
   }
 
   function isDone(docId) {
@@ -271,10 +358,104 @@
   }
 
   function jumpToHeading(line) {
-    const target = document.getElementById(headingId(appState.activeDocId, line));
+    const target = document.getElementById(headingId(activeDoc().id, line));
     if (!target) return;
     const top = target.getBoundingClientRect().top + window.pageYOffset - 88;
     window.scrollTo({ top, behavior: "smooth" });
+  }
+
+  function selectDocVersion(docId, version) {
+    appState.docVersions[docId] = version;
+    renderAll();
+  }
+
+  function noteKey(doc) {
+    const current = activeDoc(doc);
+    return `${current.id}::${current.currentVersion || "default"}`;
+  }
+
+  function getNote(doc) {
+    return loadNotes()[noteKey(doc)] || "";
+  }
+
+  function setNote(doc, value) {
+    const notes = loadNotes();
+    const key = noteKey(doc);
+    if (value.trim()) notes[key] = value;
+    else delete notes[key];
+    saveNotes(notes);
+  }
+
+  function bindNotesPanel(container, doc) {
+    const textarea = container.querySelector("[data-note-text]");
+    const status = container.querySelector("[data-note-status]");
+    if (textarea) {
+      textarea.addEventListener("input", () => {
+        setNote(doc, textarea.value);
+        if (status) status.textContent = textarea.value.trim() ? "已自动保存到本机浏览器" : "空笔记不会保存";
+      });
+    }
+    const copyButton = container.querySelector("[data-note-copy]");
+    if (copyButton) {
+      copyButton.addEventListener("click", async () => {
+        const value = textarea?.value || "";
+        if (!value.trim()) {
+          if (status) status.textContent = "当前没有可复制的笔记";
+          return;
+        }
+        try {
+          await navigator.clipboard.writeText(value);
+          if (status) status.textContent = "已复制到剪贴板";
+        } catch (error) {
+          if (status) status.textContent = "复制失败，可以手动选中文本复制";
+        }
+      });
+    }
+    const downloadButton = container.querySelector("[data-note-download]");
+    if (downloadButton) {
+      downloadButton.addEventListener("click", () => {
+        const value = textarea?.value || "";
+        if (!value.trim()) {
+          if (status) status.textContent = "当前没有可导出的笔记";
+          return;
+        }
+        const current = activeDoc(doc);
+        const blob = new Blob([`# ${current.title} 笔记\n\n版本：${current.currentVersion || "default"}\n\n${value}\n`], { type: "text/markdown;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `${current.id}-${current.currentVersion || "default"}-notes.md`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+        if (status) status.textContent = "已生成本地 Markdown 笔记文件";
+      });
+    }
+    const clearButton = container.querySelector("[data-note-clear]");
+    if (clearButton) {
+      clearButton.addEventListener("click", () => {
+        if (!textarea) return;
+        textarea.value = "";
+        setNote(doc, "");
+        if (status) status.textContent = "已清空这篇当前版本的笔记";
+      });
+    }
+  }
+
+  function renderNotesHtml(doc) {
+    const current = activeDoc(doc);
+    return `
+      <h3>阅读笔记</h3>
+      <p class="note-context">${escapeHtml(current.shortTitle || current.title)}${current.currentVersion ? ` · v${escapeHtml(current.currentVersion)}` : ""}</p>
+      <textarea class="note-textarea" data-note-text placeholder="在这里记录你的理解、疑问、待改造点。笔记会保存在本机浏览器，不会上传。">${escapeHtml(getNote(current))}</textarea>
+      <div class="note-actions">
+        <button class="ghost-button" type="button" data-note-copy>复制</button>
+        <button class="ghost-button" type="button" data-note-download>导出</button>
+        <button class="ghost-button" type="button" data-note-clear>清空</button>
+      </div>
+      <p class="note-status" data-note-status>${getNote(current).trim() ? "已从本机恢复笔记" : "还没有这篇当前版本的笔记"}</p>
+    `;
   }
 
   function toggleDone(docId) {
@@ -325,7 +506,7 @@
     const done = appState.progress.completed.length;
     const total = docs.length || 1;
     const percent = Math.round((done / total) * 100);
-    const activeDoc = byId(appState.activeDocId);
+    const activeDoc = activeDocById(appState.activeDocId);
     els.progressPanel.innerHTML = `
       <h3>学习进度</h3>
       <div class="progress-bar" aria-label="学习进度"><span style="width:${percent}%"></span></div>
@@ -339,11 +520,15 @@
     document.getElementById("backOverview").addEventListener("click", goOverview);
   }
 
-  function renderOutlinePanel() {
-    const doc = byId(appState.activeDocId);
+  function renderNotesPanel() {
+    const doc = activeDocById(appState.activeDocId);
+    els.notesPanel.innerHTML = renderNotesHtml(doc);
+    bindNotesPanel(els.notesPanel, doc);
+  }
+
+  function renderOutlineHtml(doc) {
     const visibleHeadings = doc.headings.filter((heading) => heading.level <= 4);
-    els.outlinePanel.innerHTML = `
-      <h3>本篇大纲</h3>
+    return `
       <div class="outline-list">
         ${visibleHeadings.map((heading) => `
           <button class="outline-item level-${heading.level}" type="button" data-line="${heading.line}">
@@ -352,8 +537,359 @@
         `).join("")}
       </div>
     `;
+  }
+
+  function renderAiMessageText(value) {
+    const parts = String(value || "").split(/```/);
+    return parts.map((part, index) => {
+      if (index % 2 === 1) return `<pre><code>${escapeHtml(part.trim())}</code></pre>`;
+      return part
+        .split(/\n{2,}/)
+        .map((paragraph) => paragraph.trim())
+        .filter(Boolean)
+        .map((paragraph) => `<p>${renderInline(paragraph).replace(/\n/g, "<br>")}</p>`)
+        .join("");
+    }).join("");
+  }
+
+  function renderAiAssistantHtml() {
+    const doc = activeDocById(appState.activeDocId);
+    const messages = appState.aiMessages;
+    const config = appState.aiConfig;
+    return `
+      <div class="ai-context">
+        <strong>${escapeHtml(doc.shortTitle)}</strong>
+        <span>当前章节 + 全站检索 + ${config.webSearch ? "网页搜索" : "仅本地资料"}</span>
+      </div>
+      <div class="ai-chat-log" data-ai-log>
+        ${messages.length ? messages.map((message) => `
+          <article class="ai-message ${message.role === "user" ? "user" : "assistant"}">
+            <span>${message.role === "user" ? "你" : "AI"}</span>
+            <div>${renderAiMessageText(message.content)}</div>
+          </article>
+        `).join("") : `
+          <div class="ai-empty">
+            <strong>可以边读边问。</strong>
+            <p>它会定位你正在看的章节，检索其它文档相关片段；开启网页搜索时，还会补充 DuckDuckGo 搜索摘要。</p>
+          </div>
+        `}
+      </div>
+      <form class="ai-composer" data-ai-form>
+        <div class="ai-config-grid">
+          <label class="ai-key-field">
+            <span>接口 URL</span>
+            <input data-ai-endpoint type="url" value="${escapeHtml(config.endpoint)}" placeholder="https://api.deepseek.com/chat/completions" autocomplete="off">
+          </label>
+          <label class="ai-key-field">
+            <span>模型 ID</span>
+            <input data-ai-model type="text" value="${escapeHtml(config.model)}" placeholder="deepseek-v4-pro" autocomplete="off">
+          </label>
+          <label class="ai-key-field wide">
+            <span>API Key</span>
+            <input data-ai-key type="password" value="${escapeHtml(config.apiKey)}" placeholder="已从本机 Hermes 配置预填，可改" autocomplete="off">
+          </label>
+          <label class="ai-check-field">
+            <input data-ai-web type="checkbox" ${config.webSearch ? "checked" : ""}>
+            <span>允许网页搜索</span>
+          </label>
+        </div>
+        <textarea data-ai-input rows="4" placeholder="例如：用新手能懂的话解释这一节的中间件执行顺序。"></textarea>
+        <div class="ai-actions">
+          <button class="primary-button" type="submit" ${appState.aiBusy ? "disabled" : ""}>${appState.aiBusy ? "思考中" : "提问"}</button>
+          <button class="ghost-button" type="button" data-ai-clear>清空</button>
+        </div>
+        <p class="ai-status" data-ai-status>设置会保存到本机浏览器 localStorage。</p>
+      </form>
+    `;
+  }
+
+  function renderStudyPanel() {
+    const doc = activeDocById(appState.activeDocId);
+    els.outlinePanel.innerHTML = `
+      <div class="rail-switch" role="tablist" aria-label="学习侧栏切换">
+        <button class="${appState.railMode === "ai" ? "active" : ""}" type="button" data-rail-mode="ai" aria-pressed="${appState.railMode === "ai"}">问 AI</button>
+        <button class="${appState.railMode === "outline" ? "active" : ""}" type="button" data-rail-mode="outline" aria-pressed="${appState.railMode === "outline"}">大纲</button>
+      </div>
+      ${appState.railMode === "outline" ? `<h3>本篇大纲</h3>${renderOutlineHtml(doc)}` : renderAiAssistantHtml()}
+    `;
+    els.outlinePanel.querySelectorAll("[data-rail-mode]").forEach((button) => {
+      button.addEventListener("click", () => {
+        appState.railMode = button.dataset.railMode;
+        renderStudyPanel();
+      });
+    });
     els.outlinePanel.querySelectorAll("[data-line]").forEach((button) => {
       button.addEventListener("click", () => jumpToHeading(Number(button.dataset.line)));
+    });
+    bindAiAssistantPanel();
+  }
+
+  function buildAiContext(doc) {
+    const current = activeDoc(doc);
+    const section = getCurrentSection(current);
+    const outline = current.headings
+      .filter((heading) => heading.level <= 4)
+      .slice(0, 80)
+      .map((heading) => `${"#".repeat(heading.level)} ${heading.text}`)
+      .join("\n");
+    const note = getNote(current).trim();
+    return [
+      `当前学习文档：${current.title}`,
+      `版本：${current.currentVersion || "default"}`,
+      `文件：${current.file}`,
+      `当前所在章节：${section.title}`,
+      "",
+      "本篇大纲：",
+      outline || "无",
+      "",
+      note ? `用户阅读笔记：\n${note}\n` : "",
+      "当前章节原文：",
+      section.markdown
+    ].filter(Boolean).join("\n");
+  }
+
+  function getCurrentSection(doc) {
+    const headings = doc.headings || [];
+    if (!headings.length) {
+      return { title: doc.title, markdown: doc.markdown.slice(0, 18000) };
+    }
+    let activeHeading = headings[0];
+    headings.forEach((heading) => {
+      const target = document.getElementById(headingId(doc.id, heading.line));
+      if (target && target.getBoundingClientRect().top <= 130) activeHeading = heading;
+    });
+    const sameOrHigher = headings.find((heading) => heading.line > activeHeading.line && heading.level <= activeHeading.level);
+    const lines = doc.markdown.split(/\r?\n/);
+    const start = Math.max(0, activeHeading.line - 1);
+    const end = sameOrHigher ? Math.max(start + 1, sameOrHigher.line - 1) : lines.length;
+    const markdown = lines.slice(start, end).join("\n");
+    return {
+      title: activeHeading.text || doc.title,
+      markdown: markdown.length > 18000 ? `${markdown.slice(0, 18000)}\n\n[当前章节过长，后续内容已截断。]` : markdown
+    };
+  }
+
+  function splitDocChunks(doc) {
+    const lines = doc.markdown.split(/\r?\n/);
+    const headings = (doc.headings || []).length ? doc.headings : [{ line: 1, level: 1, text: doc.title }];
+    return headings.map((heading, index) => {
+      const next = headings[index + 1];
+      const start = Math.max(0, heading.line - 1);
+      const end = next ? Math.max(start + 1, next.line - 1) : lines.length;
+      const markdown = lines.slice(start, end).join("\n").trim();
+      return {
+        doc,
+        title: heading.text || doc.title,
+        level: heading.level,
+        line: heading.line,
+        text: markdown.length > 2200 ? `${markdown.slice(0, 2200)}\n[片段截断]` : markdown
+      };
+    }).filter((chunk) => chunk.text);
+  }
+
+  function searchCorpus(question) {
+    const terms = tokenize(question);
+    if (!terms.length) return [];
+    return docs.flatMap((doc) => splitDocChunks(activeDoc(doc))).map((chunk) => {
+      const haystack = normalize(`${chunk.doc.title} ${chunk.doc.file} ${chunk.title} ${chunk.text}`);
+      const score = terms.reduce((sum, term) => sum + (haystack.includes(term) ? 1 : 0), 0);
+      const titleScore = terms.reduce((sum, term) => sum + (normalize(`${chunk.doc.title} ${chunk.title}`).includes(term) ? 2 : 0), 0);
+      return { ...chunk, score: score + titleScore };
+    }).filter((chunk) => chunk.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 10);
+  }
+
+  function formatCorpusHits(hits) {
+    if (!hits.length) return "未命中其它本地资料。";
+    return hits.map((hit, index) => [
+      `【本地资料 ${index + 1}】${hit.doc.shortTitle || hit.doc.title} · ${hit.title} · line ${hit.line}`,
+      hit.text
+    ].join("\n")).join("\n\n---\n\n");
+  }
+
+  async function fetchWebSearchContext(question) {
+    if (!appState.aiConfig.webSearch) return "网页搜索未开启。";
+    const query = encodeURIComponent(`${question} DeerFlow LangGraph`);
+    const url = `https://r.jina.ai/http://duckduckgo.com/html/?q=${query}`;
+    try {
+      const response = await fetch(url, { method: "GET" });
+      if (!response.ok) return `网页搜索失败：HTTP ${response.status}`;
+      const text = await response.text();
+      return text.slice(0, 6000);
+    } catch (error) {
+      return `网页搜索失败：${error.message || error}`;
+    }
+  }
+
+  async function buildHermesMessages(question) {
+    const doc = activeDocById(appState.activeDocId);
+    const corpusHits = searchCorpus(question);
+    const webContext = await fetchWebSearchContext(question);
+    const recent = appState.aiMessages.slice(-8).map((message) => ({
+      role: message.role === "user" ? "user" : "assistant",
+      content: message.content
+    }));
+    return [
+      {
+        role: "system",
+        content: [
+          "你是 DeerFlow 学习系统里的随读助教。",
+          "请用中文回答，优先围绕当前章节、本地资料检索结果和网页搜索结果解释。",
+          "回答要清晰、分层、适合学习，不要编造文档里没有的源码事实。",
+          "如果问题超出提供资料，请明确说明你是在推断。",
+          "引用资料时，优先说明来自当前章节、本地其它文档，还是网页搜索摘要。"
+        ].join("\n")
+      },
+      {
+        role: "user",
+        content: [
+          "下面是当前阅读上下文和检索资料，请先理解它，后续回答都以这些资料为主要依据。",
+          "",
+          "## 当前阅读位置",
+          buildAiContext(doc),
+          "",
+          "## 全站本地资料检索结果",
+          formatCorpusHits(corpusHits),
+          "",
+          "## 网页搜索摘要",
+          webContext
+        ].join("\n")
+      },
+      ...recent,
+      { role: "user", content: question }
+    ];
+  }
+
+  async function askHermes(question, onDelta) {
+    const config = appState.aiConfig;
+    if (!config.apiKey) throw new Error("请先填入 API Key。");
+    const messages = await buildHermesMessages(question);
+    const response = await fetch(config.endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${config.apiKey}`
+      },
+      body: JSON.stringify({
+        model: config.model,
+        stream: true,
+        temperature: 0.2,
+        messages
+      })
+    });
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => "");
+      throw new Error(text || `Hermes API 返回 ${response.status}`);
+    }
+
+    const contentType = response.headers.get("content-type") || "";
+    if (!response.body || !contentType.includes("text/event-stream")) {
+      const payload = await response.json();
+      const answer = payload?.choices?.[0]?.message?.content || "";
+      onDelta(answer);
+      return answer;
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let answer = "";
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const events = buffer.split("\n\n");
+      buffer = events.pop() || "";
+      events.forEach((eventText) => {
+        eventText.split("\n").forEach((line) => {
+          if (!line.startsWith("data:")) return;
+          const dataLine = line.slice(5).trim();
+          if (!dataLine || dataLine === "[DONE]") return;
+          try {
+            const payload = JSON.parse(dataLine);
+            const delta = payload?.choices?.[0]?.delta?.content || payload?.choices?.[0]?.message?.content || "";
+            if (delta) {
+              answer += delta;
+              onDelta(delta);
+            }
+          } catch (error) {
+            // Ignore keepalive or non-JSON SSE chunks.
+          }
+        });
+      });
+    }
+
+    return answer;
+  }
+
+  function bindAiAssistantPanel() {
+    if (appState.railMode !== "ai") return;
+    const form = els.outlinePanel.querySelector("[data-ai-form]");
+    const input = els.outlinePanel.querySelector("[data-ai-input]");
+    const endpointInput = els.outlinePanel.querySelector("[data-ai-endpoint]");
+    const modelInput = els.outlinePanel.querySelector("[data-ai-model]");
+    const keyInput = els.outlinePanel.querySelector("[data-ai-key]");
+    const webInput = els.outlinePanel.querySelector("[data-ai-web]");
+    const status = els.outlinePanel.querySelector("[data-ai-status]");
+    const clear = els.outlinePanel.querySelector("[data-ai-clear]");
+    const log = els.outlinePanel.querySelector("[data-ai-log]");
+    if (log) log.scrollTop = log.scrollHeight;
+    clear?.addEventListener("click", () => {
+      appState.aiMessages = [];
+      saveAiMessages();
+      renderStudyPanel();
+    });
+    const persistConfig = () => {
+      saveAiConfig({
+        endpoint: endpointInput?.value.trim() || defaultAiConfig.endpoint,
+        model: modelInput?.value.trim() || defaultAiConfig.model,
+        apiKey: keyInput?.value.trim() || "",
+        webSearch: Boolean(webInput?.checked)
+      });
+      if (status) status.textContent = "AI 设置已保存到本机浏览器";
+    };
+    [endpointInput, modelInput, keyInput, webInput].forEach((control) => {
+      control?.addEventListener("change", persistConfig);
+    });
+    form?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const question = input?.value.trim() || "";
+      if (!question || appState.aiBusy) return;
+      persistConfig();
+      appState.aiBusy = true;
+      appState.aiMessages.push({ role: "user", content: question });
+      appState.aiMessages.push({ role: "assistant", content: "" });
+      saveAiMessages();
+      renderStudyPanel();
+
+      const assistantMessage = appState.aiMessages[appState.aiMessages.length - 1];
+      try {
+        if (status) status.textContent = appState.aiConfig.webSearch ? "正在检索本地资料和网页资料..." : "正在检索本地资料...";
+        await askHermes(question, (delta) => {
+          assistantMessage.content += delta;
+          saveAiMessages();
+          const last = els.outlinePanel.querySelector(".ai-message.assistant:last-child div");
+          if (last) last.innerHTML = renderAiMessageText(assistantMessage.content);
+          const activeLog = els.outlinePanel.querySelector("[data-ai-log]");
+          if (activeLog) activeLog.scrollTop = activeLog.scrollHeight;
+        });
+        if (!assistantMessage.content.trim()) assistantMessage.content = "Hermes 没有返回文本内容。";
+      } catch (error) {
+        assistantMessage.content = [
+          "AI 请求没有成功。",
+          "",
+          "请检查接口 URL、模型 ID 和 API Key 是否正确。",
+          "",
+          `错误信息：${error.message || error}`
+        ].join("\n");
+      } finally {
+        appState.aiBusy = false;
+        saveAiMessages();
+        renderStudyPanel();
+      }
     });
   }
 
@@ -397,7 +933,8 @@
       catalog: "课程目录",
       search: "全文搜索",
       outline: "本篇大纲",
-      progress: "学习进度"
+      progress: "学习进度",
+      notes: "阅读笔记"
     };
     els.mobileDrawerTitle.textContent = titles[panel] || "学习面板";
     els.mobileDrawerBody.innerHTML = renderMobilePanel(panel);
@@ -411,7 +948,7 @@
   }
 
   function renderMobilePanel(panel) {
-    const doc = byId(appState.activeDocId);
+    const doc = activeDocById(appState.activeDocId);
     if (panel === "catalog") {
       const done = appState.progress.completed.length;
       const total = docs.length || 1;
@@ -454,6 +991,9 @@
           `).join("")}
         </div>
       `;
+    }
+    if (panel === "notes") {
+      return renderNotesHtml(doc);
     }
     if (panel === "progress") {
       const done = appState.progress.completed.length;
@@ -509,6 +1049,9 @@
         closeMobileDrawer();
         goOverview();
       });
+    }
+    if (panel === "notes") {
+      bindNotesPanel(els.mobileDrawerBody, activeDocById(appState.activeDocId));
     }
   }
 
@@ -613,7 +1156,7 @@
       <article class="doc-card ${isDone(doc.id) ? "done" : ""}" data-card-doc-id="${doc.id}" tabindex="0">
         <div class="doc-card-top">
           <span class="doc-index">${docNumber(doc)}</span>
-          <span class="metric-pill">${doc.readingMinutes} min</span>
+          <span class="metric-pill">${doc.versions?.length ? `v${doc.currentVersion}` : `${doc.readingMinutes} min`}</span>
         </div>
         <h3>${escapeHtml(doc.shortTitle)}</h3>
         <p>${snippet ? highlight(snippet, appState.query) : escapeHtml(doc.summary)}</p>
@@ -626,17 +1169,33 @@
     `;
   }
 
+  function renderVersionTabs(doc) {
+    if (!doc.versions?.length) return "";
+    return `
+      <div class="version-tabs" aria-label="文档版本切换">
+        ${doc.versions.map((version) => `
+          <button class="version-tab ${version.version === doc.currentVersion ? "active" : ""}" type="button" data-version="${version.version}">
+            <strong>${escapeHtml(version.label || version.version)}</strong>
+            <span>${escapeHtml(version.badge || "")} · ${version.lineCount} 行 · ${version.headingCount} 节</span>
+          </button>
+        `).join("")}
+      </div>
+    `;
+  }
+
   function renderReader() {
-    const doc = byId(appState.activeDocId);
+    const doc = activeDocById(appState.activeDocId);
     els.content.classList.toggle("raw-mode", appState.rawMode);
     els.content.innerHTML = `
       <article class="reader">
         <header class="reader-header">
-          <span class="eyebrow">${escapeHtml(doc.file)}</span>
+          <span class="eyebrow">${escapeHtml(doc.file)}${doc.versions?.length ? ` · v${escapeHtml(doc.currentVersion)}` : ""}</span>
           <h1>${escapeHtml(doc.title)}</h1>
           <p>${escapeHtml(doc.summary)}</p>
+          ${renderVersionTabs(doc)}
           <div class="reader-tools">
             <button class="primary-button" type="button" id="readerDone">${isDone(doc.id) ? "已完成，点击取消" : "标记本篇完成"}</button>
+            <button class="secondary-button" type="button" id="readerNotes">写笔记</button>
             <button class="secondary-button" type="button" id="prevDoc">上一篇</button>
             <button class="secondary-button" type="button" id="nextDoc">下一篇</button>
             <span class="metric-pill">${doc.headingCount} 节</span>
@@ -652,6 +1211,17 @@
     `;
 
     document.getElementById("readerDone").addEventListener("click", () => toggleDone(doc.id));
+    document.getElementById("readerNotes").addEventListener("click", () => {
+      if (window.matchMedia("(max-width: 980px)").matches) {
+        openMobileDrawer("notes");
+      } else {
+        const textarea = els.notesPanel?.querySelector("[data-note-text]");
+        textarea?.focus();
+      }
+    });
+    els.content.querySelectorAll("[data-version]").forEach((button) => {
+      button.addEventListener("click", () => selectDocVersion(doc.id, button.dataset.version));
+    });
     document.getElementById("prevDoc").addEventListener("click", () => {
       const prev = docs[Math.max(0, doc.order - 1)];
       openDoc(prev.id);
@@ -670,7 +1240,8 @@
   function renderAll() {
     renderDocList();
     renderProgressPanel();
-    renderOutlinePanel();
+    renderNotesPanel();
+    renderStudyPanel();
     renderSearchPanel();
     renderMain();
     els.toggleRaw.setAttribute("aria-pressed", String(appState.rawMode));
